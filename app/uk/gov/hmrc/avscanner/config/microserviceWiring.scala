@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.avscanner.config
 
+import uk.gov.hmrc.avscanner.config.ClamAvConfig._
 import uk.gov.hmrc.play.audit.http.HttpAuditing
 import uk.gov.hmrc.play.audit.http.config.LoadAuditingConfig
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
@@ -32,6 +33,41 @@ object WSHttp extends WSGet with WSPut with WSPost with WSDelete with WSPatch wi
 object AuthParamsControllerConfiguration extends AuthParamsControllerConfig {
   lazy val controllerConfigs = ControllerConfiguration.controllerConfigs
 }
+
+case class ClamAvConfig(enabled : Boolean,
+                        chunkSize : Int,
+                        protocol : String,
+                        host : String,
+                        port : Int,
+                        timeout : Int,
+                        threadPoolSize : Int){
+
+  val url = s"$protocol://$host:$port"
+  val instream = "zINSTREAM\u0000"
+  val ping = "zPING\u0000"
+  val status = "nSTATS\n"
+
+  val okClamAvResponse = "stream: OK"
+
+  def socket = {
+    import java.net.{InetSocketAddress, Socket}
+
+    val sock = new Socket
+    sock.setSoTimeout(clamAvConfig.timeout)
+    sock.connect(new InetSocketAddress(clamAvConfig.host, clamAvConfig.port))
+    sock
+  }
+}
+
+object ClamAvConfig {
+
+  import play.api.Play
+  import net.ceedubs.ficus.readers.ArbitraryTypeReader._
+  import net.ceedubs.ficus.Ficus._
+
+  lazy val clamAvConfig = Play.current.configuration.underlying.as[ClamAvConfig]("clam.antivirus")
+}
+
 
 //Connectors
 object MicroserviceAuditConnector extends AuditConnector with RunMode {
