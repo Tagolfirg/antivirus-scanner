@@ -20,39 +20,35 @@ import java.io._
 
 import play.api.Logger
 
-class ClamAntiVirus (virusDetectedFunction: => Unit = (), allowedMimeTypes: Set[String]) {
+class ClamAntiVirus (virusDetectedFunction: => Unit = ()) {
 
   import uk.gov.hmrc.avscanner.config.ClamAvConfig.clamAvConfig
 
-  private val copyInputStream = new PipedInputStream()
-
   private val socket = clamAvConfig.socket
   private val toClam = new DataOutputStream(socket.getOutputStream)
-  private val fromClam = socket.getInputStream
+  private lazy val fromClam = socket.getInputStream
 
   toClam.write(clamAvConfig.instream.getBytes())
 
-  def sendBytesToClamd(bytes: Array[Byte]) {
-//    if (mimeTypeDetected == null)
-//      mimeTypeDetected = detectMimeType(bytes)
-
+  def sendBytesToClamd(bytes: Array[Byte]) = {
     toClam.writeInt(bytes.length)
     toClam.write(bytes)
     toClam.flush()
   }
 
-  def checkForVirus() {
+  def checkForVirus() = {
     try {
       toClam.writeInt(0)
       toClam.flush()
 
       val virusInformation = responseFromClamd()
 
-      if ((!clamAvConfig.okClamAvResponse.equals(virusInformation)) || !isValidMimeType) {
+      if (!clamAvConfig.okClamAvResponse.equals(virusInformation)) {
         virusDetectedFunction
 
-        Logger.error(s"Virus detected $virusInformation")
-        raiseError(virusInformation)
+        Logger.warn(s"Virus detected : $virusInformation")
+        throw new VirusDetectedException(virusInformation)
+
       } else {
         Logger.info("File clean")
       }
@@ -62,38 +58,21 @@ class ClamAntiVirus (virusDetectedFunction: => Unit = (), allowedMimeTypes: Set[
     }
   }
 
-  def terminate() {
+  def terminate() = {
     try {
-      copyInputStream.close()
       socket.close()
+    }
+    catch {
+      case e: IOException =>
+        Logger.warn("Error closing socket to clamd", e)
+    }
+    try {
       toClam.close()
     }
     catch {
       case e: IOException =>
         Logger.warn("Error closing socket to clamd", e)
     }
-  }
-
-  private def raiseError(responseFromClamd: String): Nothing =
-//    if (!isValidMimeType)
-//      throw new InvalidMimeTypeException(mimeTypeDetected)
-//    else
-      throw new VirusDetectedException(responseFromClamd)
-
-  private def isValidMimeType = true
-//    if (allowedMimeTypes.contains(mimeTypeDetected)) {
-//      true
-//    } else {
-//      false
-//    }
-
-  private def detectMimeType(bytes: Array[Byte]) = {
-//    val mimeType = Magic.getMagicMatch(bytes).getMimeType
-//
-//    if (mimeType == null)
-      "[unknown mime type]"
-//    else
-//      mimeType
   }
 
   private def responseFromClamd() = {
