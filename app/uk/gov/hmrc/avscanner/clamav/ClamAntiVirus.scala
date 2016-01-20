@@ -87,3 +87,5 @@ class ClamAntiVirus (virusDetectedFunction: => Unit = ()) {
   }
 
 }
+
+class VirusDetectedException(val virusInformation: String) extends Exception(s"Virus detected: $virusInformation")
