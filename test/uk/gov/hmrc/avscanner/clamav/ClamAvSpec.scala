@@ -119,38 +119,6 @@ class ClamAvSpec extends UnitSpec with WithFakeApplication {
     cleanupCalled should be(true)
   }
 
-  "Can pass in a function which copies input stream to output stream" in {
-    val outputStream = new ByteArrayOutputStream()
-
-    val clamav = new ClamAntiVirus(
-      allowedMimeTypes = validMimeTypes,
-      streamCopyFunction = {
-      inputStream: InputStream =>
-        Iterator.continually(inputStream.read())
-          .takeWhile(_ != -1)
-          .foreach {
-          byte =>
-            if (Thread.interrupted())
-              throw new InterruptedException()
-
-            outputStream.write(byte)
-            outputStream.flush()
-        }
-    })
-
-    try {
-      val payload = getBytes(payloadSize = 1000)
-      clamav.sendBytesToClamd(payload)
-      clamav.checkForVirus()
-
-      outputStream.toByteArray should be(payload)
-    }
-    finally {
-      outputStream.close()
-      clamav.terminate()
-    }
-  }
-
   private def getPayload(payloadSize: Int = 0, shouldInsertVirusAtPosition: Option[Int] = None) = {
     val payloadData = shouldInsertVirusAtPosition match {
       case Some(position) =>

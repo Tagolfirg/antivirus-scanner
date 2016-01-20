@@ -20,22 +20,15 @@ import java.io._
 
 import play.api.Logger
 
-class ClamAntiVirus (streamCopyFunction: (InputStream) => Unit = DevNull.nullStream(_),
-                      virusDetectedFunction: => Unit = (),
-                      allowedMimeTypes: Set[String]) {
+class ClamAntiVirus (virusDetectedFunction: => Unit = (), allowedMimeTypes: Set[String]) {
 
   import uk.gov.hmrc.avscanner.config.ClamAvConfig.clamAvConfig
 
   private val copyInputStream = new PipedInputStream()
-  private val copyOutputStream = new PipedOutputStream(copyInputStream)
 
   private val socket = clamAvConfig.socket
   private val toClam = new DataOutputStream(socket.getOutputStream)
   private val fromClam = socket.getInputStream
-
-  private val streamCopyThread = runStreamCopyThread()
-
-//  @volatile private var mimeTypeDetected: String = null
 
   toClam.write(clamAvConfig.instream.getBytes())
 
@@ -45,28 +38,23 @@ class ClamAntiVirus (streamCopyFunction: (InputStream) => Unit = DevNull.nullStr
 
     toClam.writeInt(bytes.length)
     toClam.write(bytes)
-    copyOutputStream.write(bytes)
     toClam.flush()
-    copyOutputStream.flush()
   }
 
   def checkForVirus() {
     try {
       toClam.writeInt(0)
       toClam.flush()
-      copyOutputStream.flush()
-      copyOutputStream.close()
 
       val virusInformation = responseFromClamd()
 
       if ((!clamAvConfig.okClamAvResponse.equals(virusInformation)) || !isValidMimeType) {
-        streamCopyThread.interrupt()
         virusDetectedFunction
 
         Logger.error(s"Virus detected $virusInformation")
         raiseError(virusInformation)
       } else {
-        streamCopyThread.join()
+        Logger.info("File clean")
       }
     }
     finally {
@@ -77,7 +65,6 @@ class ClamAntiVirus (streamCopyFunction: (InputStream) => Unit = DevNull.nullStr
   def terminate() {
     try {
       copyInputStream.close()
-      copyOutputStream.close()
       socket.close()
       toClam.close()
     }
@@ -120,23 +107,4 @@ class ClamAntiVirus (streamCopyFunction: (InputStream) => Unit = DevNull.nullStr
     response.trim()
   }
 
-  private def runStreamCopyThread() = {
-    val thread = new Thread(new Runnable() {
-      def run() {
-        streamCopyFunction(copyInputStream)
-      }
-    })
-
-    thread.start()
-    thread
-  }
-}
-
-private object DevNull {
-  def nullStream(inputStream: InputStream) =
-    Iterator.continually(inputStream.read())
-      .takeWhile(_ != -1)
-      .foreach {
-      b => // no-op. We just throw the bytes away
-    }
 }
