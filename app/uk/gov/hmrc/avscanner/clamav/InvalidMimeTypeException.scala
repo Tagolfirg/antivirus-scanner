@@ -16,5 +16,4 @@
 
 package uk.gov.hmrc.avscanner.clamav
 
-class InvalidMimeTypeException(mimeType: String)
-  extends Exception("Invalid mime type detected: " + mimeType)
+class InvalidMimeTypeException(mimeType: String) extends Exception(s"Invalid mime type detected: $mimeType")
