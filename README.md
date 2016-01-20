@@ -14,7 +14,7 @@ For Macs
 
 ```brew install clamav```
 
-
+You can find a slightly longer explaination [here](https://gist.github.com/paulspringett/8802240)
 
 
 
