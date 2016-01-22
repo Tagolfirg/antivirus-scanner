@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.avscanner.clamav
 
+import uk.gov.hmrc.avscanner.FileBytes
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
 
 class ClamAvSpec extends UnitSpec with WithFakeApplication {
@@ -24,13 +25,12 @@ class ClamAvSpec extends UnitSpec with WithFakeApplication {
 
   private val virusSig = "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*\u0000"
   private val virusFileWithSig = "/eicar-standard-av-test-file"
-  private val virusClamTestVirus = "/clamav.hdb"
-  private val testPdfFileName = "/162000101.pdf"
+  private val cleanFile = "/162000101.pdf"
 
   "Scanning files" should {
     "allow clean files" in {
       val clamAv = new ClamAntiVirus()
-      val bytes = chunkOfFile(testPdfFileName)
+      val bytes = FileBytes(cleanFile)
 
       try {
         await(clamAv.sendBytesToClamd(bytes))
@@ -43,7 +43,7 @@ class ClamAvSpec extends UnitSpec with WithFakeApplication {
 
     "detect a virus in a file" in {
       val clamAv = new ClamAntiVirus()
-      val bytes = chunkOfFile(virusFileWithSig)
+      val bytes = FileBytes(virusFileWithSig)
 
       try {
         intercept[VirusDetectedException] {
@@ -126,18 +126,5 @@ class ClamAvSpec extends UnitSpec with WithFakeApplication {
   private def getBytes(payloadSize: Int = 0,
                        shouldInsertVirusAtPosition: Option[Int] = None) =
     getPayload(payloadSize, shouldInsertVirusAtPosition).getBytes()
-
-  private def chunkOfFile(filename: String) = {
-    val stream = getClass.getResourceAsStream(filename)
-
-    if (stream == null)
-      throw new Exception("Could not open stream to: " + filename)
-
-    Iterator.continually(stream.read)
-      .takeWhile(_ != -1)
-      .take(1000)
-      .map(_.toByte)
-      .toArray
-  }
 
 }
