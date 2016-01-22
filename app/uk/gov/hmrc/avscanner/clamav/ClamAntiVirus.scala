@@ -22,6 +22,7 @@ import play.api.Logger
 
 import scala.concurrent.{ExecutionContext, Future}
 
+// This is a fork of https://github.com/davidillsley/gds-clamav-scala/tree/531562368a438eafc1fcbfa07cc63c184d369fa9
 class ClamAntiVirus() {
 
   import uk.gov.hmrc.avscanner.config.ClamAvConfig.clamAvConfig

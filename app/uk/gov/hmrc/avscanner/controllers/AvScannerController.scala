@@ -34,7 +34,7 @@ trait AvScannerController extends BaseController {
   def scan() = Action.async(parse.multipartFormData) {
     implicit request =>
 
-      request.body.file("file").map {
+      request.body.file("to-scan").map {
         file =>
           av(Files.readAllBytes(file.ref.file.toPath))
 
