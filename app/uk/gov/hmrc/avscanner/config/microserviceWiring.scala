@@ -71,7 +71,7 @@ object ClamAvConfig {
 
 //Connectors
 object MicroserviceAuditConnector extends AuditConnector with RunMode {
-  override lazy val auditingConfig = LoadAuditingConfig(s"$env.auditing")
+  override lazy val auditingConfig = LoadAuditingConfig(s"auditing")
 }
 
 object MicroserviceAuthConnector extends AuthConnector with ServicesConfig {
