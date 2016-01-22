@@ -17,15 +17,53 @@
 package uk.gov.hmrc.avscanner.controllers
 
 
+import java.nio.file.Files
+
+import play.api.libs.Files.TemporaryFile
 import play.api.mvc._
+import play.api.{Logger, mvc}
+import uk.gov.hmrc.avscanner.clamav.{ClamAntiVirus, VirusDetectedException}
 import uk.gov.hmrc.play.microservice.controller.BaseController
 
 import scala.concurrent.Future
 
 trait AvScannerController extends BaseController {
 
-  def scan() = Action.async { implicit request =>
-    Future.successful(Ok("scanning...."))
+  import scala.concurrent.ExecutionContext.Implicits.global
+
+  def scan() = Action.async(parse.multipartFormData) {
+    implicit request =>
+
+      request.body.file("file").map {
+        file =>
+          av(Files.readAllBytes(file.ref.file.toPath))
+
+      }.getOrElse {
+          Future.successful(BadRequest("No file included in the request."))
+        }
+        .andThen {
+          case _ => cleanTemporaryFiles(request.body)
+        }
+  }
+
+  private def cleanTemporaryFiles(multipartFormData: mvc.MultipartFormData[TemporaryFile]): Unit = multipartFormData.files.map(_.ref.clean())
+
+  private[controllers] def av(bytes: Array[Byte]) = {
+    val av = new ClamAntiVirus()
+    av.sendBytesToClamd(bytes)
+      .flatMap {
+        case u =>
+          av.checkForVirus().flatMap {
+            case checked =>
+              Future.successful(Ok)
+          }.recoverWith {
+            case virus: VirusDetectedException =>
+              Future.successful(Forbidden)
+            case t: Throwable =>
+              Logger.warn("Unexpected error occurred whilst scanning file", t)
+              throw t
+          }
+      }
   }
 }
 
