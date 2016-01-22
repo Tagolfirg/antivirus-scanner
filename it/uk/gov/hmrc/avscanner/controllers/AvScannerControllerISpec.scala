@@ -43,11 +43,13 @@ class AvScannerControllerISpec extends UnitSpec with OneServerPerSuite with Scal
 
   val testVirus = new File("./test/resources/eicar-standard-av-test-file")
 
-  val scanEndpoint = s"/avscanner/scan/"
+  val scanEndpoint = s"/avscanner/scan"
 
   "anti virus scanning" should {
 
     "provide a 403 response for no virus present" in {
+
+      resource("/ping/ping").status shouldBe 200
 
       val result = postAttachment(scanEndpoint)
 
@@ -56,11 +58,9 @@ class AvScannerControllerISpec extends UnitSpec with OneServerPerSuite with Scal
 
   }
 
-
   def postAttachment(
                       path: String,
                       file: Option[File] = Some(testVirus),
-                      postPort: Int = port,
                       filePartKey : String = "to-scan"
                       ) = {
 
@@ -75,11 +75,22 @@ class AvScannerControllerISpec extends UnitSpec with OneServerPerSuite with Scal
     val bytes = baos.toByteArray
     val contentType = mpre.getContentType
 
-    val url = s"http://localhost:$postPort$path"
+    val url = s"http://localhost:$port$path"
 
     Logger.debug(s"Posting file to : $url")
 
     WS.url(url).post(bytes)(Writeable.wBytes, ContentTypeOf(Some(contentType))).futureValue
   }
+
+
+
+  val hdrs = Seq(HeaderNames.xRequestId -> "someRequestId", HeaderNames.xSessionId -> "someSessionId")
+  def resource(path: String, queryString: Seq[(String,String)] = Seq.empty, header : Seq[(String, String)] = hdrs) = {
+    WS.url(s"http://localhost:$port$path")
+      .withHeaders(hdrs : _*)
+      .withQueryString(queryString: _*)
+      .get().futureValue
+  }
+
 
 }
