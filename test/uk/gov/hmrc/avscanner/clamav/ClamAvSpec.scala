@@ -16,33 +16,55 @@
 
 package uk.gov.hmrc.avscanner.clamav
 
+import uk.gov.hmrc.avscanner.FileBytes
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
 
 class ClamAvSpec extends UnitSpec with WithFakeApplication {
 
+  import scala.concurrent.ExecutionContext.Implicits.global
+
   private val virusSig = "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*\u0000"
-  private val testPdfFileName = "/162000101.pdf"
+  private val virusFileWithSig = "/eicar-standard-av-test-file"
+  private val cleanFile = "/162000101.pdf"
 
-  "Can upload pdf files into the system" in {
-    val clamAv = new ClamAntiVirus()
-    val bytes = chunkOfFile(testPdfFileName)
+  "Scanning files" should {
+    "allow clean files" in {
+      val clamAv = new ClamAntiVirus()
+      val bytes = FileBytes(cleanFile)
 
-    try {
-      clamAv.sendBytesToClamd(bytes)
-      clamAv.checkForVirus()
+      try {
+        await(clamAv.sendBytesToClamd(bytes))
+        await(clamAv.checkForVirus())
+      }
+      finally {
+        clamAv.terminate()
+      }
     }
-    finally {
-      clamAv.terminate()
+
+    "detect a virus in a file" in {
+      val clamAv = new ClamAntiVirus()
+      val bytes = FileBytes(virusFileWithSig)
+
+      try {
+        intercept[VirusDetectedException] {
+          await(clamAv.sendBytesToClamd(bytes))
+          await(clamAv.checkForVirus())
+        }
+      }
+      finally {
+        clamAv.terminate()
+      }
     }
   }
+
 
   "Can scan stream without virus" in {
 
     val clamAv = new ClamAntiVirus()
 
     try {
-      clamAv.sendBytesToClamd(getBytes(payloadSize = 10000))
-      clamAv.checkForVirus()
+      await(clamAv.sendBytesToClamd(getBytes(payloadSize = 10000)))
+      await(clamAv.checkForVirus())
     }
     finally {
       clamAv.terminate()
@@ -53,9 +75,9 @@ class ClamAvSpec extends UnitSpec with WithFakeApplication {
     val clamAv = new ClamAntiVirus()
 
     try {
-      clamAv.sendBytesToClamd(getBytes(payloadSize = 1000))
-      clamAv.sendBytesToClamd(getBytes(payloadSize = 1000))
-      clamAv.checkForVirus()
+      await(clamAv.sendBytesToClamd(getBytes(payloadSize = 1000)))
+      await(clamAv.sendBytesToClamd(getBytes(payloadSize = 1000)))
+      await(clamAv.checkForVirus())
     }
     finally {
       clamAv.terminate()
@@ -67,35 +89,13 @@ class ClamAvSpec extends UnitSpec with WithFakeApplication {
 
     try {
       intercept[VirusDetectedException] {
-        clamAv.sendBytesToClamd(getBytes(shouldInsertVirusAtPosition = Some(0)))
-        clamAv.checkForVirus()
+        await(clamAv.sendBytesToClamd(getBytes(shouldInsertVirusAtPosition = Some(0))))
+        await(clamAv.checkForVirus())
       }
     }
     finally {
       clamAv.terminate()
     }
-  }
-
-  "Calls cleanup function when a virus is detected" in {
-    var cleanupCalled = false
-
-    def cleanup() {
-      cleanupCalled = true
-    }
-
-    val clamAv = new ClamAntiVirus(virusDetectedFunction = cleanup())
-
-    try {
-      intercept[VirusDetectedException] {
-        clamAv.sendBytesToClamd(getBytes(shouldInsertVirusAtPosition = Some(0)))
-        clamAv.checkForVirus()
-      }
-    }
-    finally {
-      clamAv.terminate()
-    }
-
-    cleanupCalled should be(true)
   }
 
   private def getPayload(payloadSize: Int = 0, shouldInsertVirusAtPosition: Option[Int] = None) = {
@@ -126,18 +126,5 @@ class ClamAvSpec extends UnitSpec with WithFakeApplication {
   private def getBytes(payloadSize: Int = 0,
                        shouldInsertVirusAtPosition: Option[Int] = None) =
     getPayload(payloadSize, shouldInsertVirusAtPosition).getBytes()
-
-  private def chunkOfFile(filename: String) = {
-    val stream = getClass.getResourceAsStream(filename)
-
-    if (stream == null)
-      throw new Exception("Could not open stream to: " + filename)
-
-    Iterator.continually(stream.read)
-      .takeWhile(_ != -1)
-      .take(1000)
-      .map(_.toByte)
-      .toArray
-  }
 
 }

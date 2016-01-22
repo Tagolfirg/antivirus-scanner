@@ -20,7 +20,10 @@ import java.io._
 
 import play.api.Logger
 
-class ClamAntiVirus (virusDetectedFunction: => Unit = ()) {
+import scala.concurrent.{ExecutionContext, Future}
+
+// This is a fork of https://github.com/davidillsley/gds-clamav-scala/tree/531562368a438eafc1fcbfa07cc63c184d369fa9
+class ClamAntiVirus() {
 
   import uk.gov.hmrc.avscanner.config.ClamAvConfig.clamAvConfig
 
@@ -30,35 +33,36 @@ class ClamAntiVirus (virusDetectedFunction: => Unit = ()) {
 
   toClam.write(clamAvConfig.instream.getBytes())
 
-  def sendBytesToClamd(bytes: Array[Byte]) = {
-    toClam.writeInt(bytes.length)
-    toClam.write(bytes)
-    toClam.flush()
+  def sendBytesToClamd(bytes: Array[Byte])(implicit ec : ExecutionContext): Future[Unit] = {
+    Future{
+      toClam.writeInt(bytes.length)
+      toClam.write(bytes)
+      toClam.flush()
+    }
   }
 
-  def checkForVirus() = {
-    try {
-      toClam.writeInt(0)
-      toClam.flush()
+  def checkForVirus()(implicit ec : ExecutionContext): Future[Unit] = {
+    Future {
+      try {
+        toClam.writeInt(0)
+        toClam.flush()
 
-      val virusInformation = responseFromClamd()
+        val virusInformation = responseFromClamd()
 
-      if (!clamAvConfig.okClamAvResponse.equals(virusInformation)) {
-        virusDetectedFunction
+        if (!clamAvConfig.okClamAvResponse.equals(virusInformation)) {
+          Logger.warn(s"Virus detected : $virusInformation")
+          throw new VirusDetectedException(virusInformation)
+        }
 
-        Logger.warn(s"Virus detected : $virusInformation")
-        throw new VirusDetectedException(virusInformation)
-
-      } else {
         Logger.info("File clean")
       }
-    }
-    finally {
-      terminate()
+      finally {
+        terminate()
+      }
     }
   }
 
-  def terminate() = {
+  private [avscanner] def terminate() = {
     try {
       socket.close()
     }

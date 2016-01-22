@@ -28,8 +28,8 @@ private object AppDependencies {
     "uk.gov.hmrc" %% "play-authorisation" % "3.1.0"
   )
 
-  abstract class TestDependencies(scope: String) {
-    lazy val test : Seq[ModuleID] = Seq(
+  abstract class TestDependencies(val scope: String) {
+    val test: Seq[ModuleID] = Seq(
       "uk.gov.hmrc" %% "hmrctest" % "1.4.0" % scope,
       "org.scalatest" %% "scalatest" % "2.2.6" % scope,
       "org.pegdown" % "pegdown" % "1.6.0" % scope,
@@ -38,7 +38,17 @@ private object AppDependencies {
   }
 
   object Test extends TestDependencies("test")
-  object IntegrationTest extends TestDependencies("it")
+
+  object IntegrationTest extends TestDependencies("it") {
+    override val test: Seq[ModuleID] = Seq(
+      "uk.gov.hmrc" %% "hmrctest" % "1.4.0" % scope,
+      "org.scalatest" %% "scalatest" % "2.2.6" % scope,
+      "org.pegdown" % "pegdown" % "1.6.0" % scope,
+      "com.typesafe.play" %% "play-test" % PlayVersion.current % scope,
+      "org.scalatestplus" %% "play" % "1.2.0" % scope,
+      "com.github.tomakehurst" % "wiremock" % "1.52" % scope
+    )
+  }
 
   def apply() = compile ++ Test.test ++ IntegrationTest.test
 
