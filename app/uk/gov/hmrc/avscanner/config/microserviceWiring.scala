@@ -36,13 +36,11 @@ object AuthParamsControllerConfiguration extends AuthParamsControllerConfig {
 
 case class ClamAvConfig(enabled : Boolean,
                         chunkSize : Int,
-                        protocol : String,
                         host : String,
                         port : Int,
                         timeout : Int,
                         threadPoolSize : Int){
 
-  val url = s"$protocol://$host:$port"
   val instream = "zINSTREAM\u0000"
   val ping = "zPING\u0000"
   val status = "nSTATS\n"
