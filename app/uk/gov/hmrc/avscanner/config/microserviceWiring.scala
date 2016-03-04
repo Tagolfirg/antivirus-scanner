@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.avscanner.config
 
+import play.api.Logger
 import uk.gov.hmrc.avscanner.config.ClamAvConfig._
 import uk.gov.hmrc.play.audit.http.HttpAuditing
 import uk.gov.hmrc.play.audit.http.config.LoadAuditingConfig
@@ -52,7 +53,9 @@ case class ClamAvConfig(enabled : Boolean,
 
     val sock = new Socket
     sock.setSoTimeout(clamAvConfig.timeout)
-    sock.connect(new InetSocketAddress(clamAvConfig.host, clamAvConfig.port))
+    val address: InetSocketAddress = new InetSocketAddress(clamAvConfig.host, clamAvConfig.port)
+    Logger.debug(s"Attempting connection to : $address")
+    sock.connect(address)
     sock
   }
 }
