@@ -16,8 +16,11 @@ For Macs
 
 You can find a slightly longer explaination [here](https://gist.github.com/paulspringett/8802240)
 
+You will also need to add the following alias to your /etc/hosts
 
+```127.0.0.1       avscan```
 
+To run the build locally you need to disable any other virus checker you have installed on your machine
 ### License
 
 This code is open source software licensed under the [Apache 2.0 License]("http://www.apache.org/licenses/LICENSE-2.0.html").
