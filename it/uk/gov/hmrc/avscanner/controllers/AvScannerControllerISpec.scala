@@ -1,6 +1,7 @@
 package uk.gov.hmrc.avscanner.controllers
 
 import java.io.{ByteArrayOutputStream, File}
+import java.nio.file.Files
 
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
@@ -14,9 +15,11 @@ import play.api.Logger
 import play.api.http.{ContentTypeOf, Writeable}
 import play.api.libs.ws.WS
 import uk.gov.hmrc.play.http.HeaderNames
+import uk.gov.hmrc.play.http.ws.WSHttpResponse
 import uk.gov.hmrc.play.test.UnitSpec
 
 import scala.collection.mutable.ListBuffer
+import scala.io.Source
 
 class AvScannerControllerISpec extends UnitSpec with OneServerPerSuite with ScalaFutures with IntegrationPatience with BeforeAndAfterAll with BeforeAndAfterEach {
 
@@ -60,26 +63,14 @@ class AvScannerControllerISpec extends UnitSpec with OneServerPerSuite with Scal
 
   def postAttachment(
                       path: String,
-                      file: Option[File] = Some(testVirus),
-                      filePartKey : String = "to-scan"
+                      file: Option[File] = Some(testVirus)
                       ) = {
-
-    val parts = ListBuffer[Part]()
-    if (file.isDefined) {
-      parts += new FilePart(filePartKey, file.get, "plain/text", "UTF-8") //"multipart/form-data"
-    }
-
-    val mpre = new MultipartRequestEntity(parts.toArray, new FluentCaseInsensitiveStringsMap)
-    val baos = new ByteArrayOutputStream
-    mpre.writeRequest(baos)
-    val bytes = baos.toByteArray
-    val contentType = mpre.getContentType
 
     val url = s"http://localhost:$port$path"
 
-    Logger.debug(s"Posting file to : $url")
+    Logger.debug(s"Posting file as bytes to : $url")
 
-    WS.url(url).post(bytes)(Writeable.wBytes, ContentTypeOf(Some(contentType))).futureValue
+    WS.url(url).post(Source.fromFile(file.get).map(_.toByte).toArray)(Writeable.wBytes, ContentTypeOf.contentTypeOf_ByteArray)
   }
 
 
