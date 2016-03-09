@@ -31,22 +31,17 @@ trait AvScannerController extends BaseController {
 
   import scala.concurrent.ExecutionContext.Implicits.global
 
-  def scan() = Action.async(parse.multipartFormData) {
+  def scan() = Action.async(parse.raw) {
     implicit request =>
 
-      request.body.file("to-scan").map {
-        file =>
-          av(Files.readAllBytes(file.ref.file.toPath))
+      request.body.asBytes(Integer.MAX_VALUE - 8).map {
+        bytes =>
+          av(bytes)
 
       }.getOrElse {
-          Future.successful(BadRequest("No file included in the request."))
-        }
-        .andThen {
-          case _ => cleanTemporaryFiles(request.body)
-        }
+        Future.successful(BadRequest("No bytes included in the request."))
+      }
   }
-
-  private def cleanTemporaryFiles(multipartFormData: mvc.MultipartFormData[TemporaryFile]): Unit = multipartFormData.files.map(_.ref.clean())
 
   private[controllers] def av(bytes: Array[Byte]) = {
     val av = new ClamAntiVirus()
