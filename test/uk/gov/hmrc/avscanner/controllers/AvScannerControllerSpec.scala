@@ -26,7 +26,7 @@ class AvScannerControllerSpec extends UnitSpec with WithFakeApplication {
 
   val avScannerController = new AvScannerController{}
 
-  val cleanFile = "/162000101.pdf"
+  val cleanFile = "/testfile.txt"
   val virusFile = "/eicar-standard-av-test-file"
 
   "anti virus scanning" should {

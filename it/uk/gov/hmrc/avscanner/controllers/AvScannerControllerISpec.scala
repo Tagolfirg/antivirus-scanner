@@ -45,18 +45,46 @@ class AvScannerControllerISpec extends UnitSpec with OneServerPerSuite with Scal
   }
 
   val testVirus = new File("./test/resources/eicar-standard-av-test-file")
+  val testFile = new File("./test/resources/testfile.txt")
+  val largeFile = new File("./test/resources/test20Mb")
 
   val scanEndpoint = s"/avscanner/scan"
 
-  "anti virus scanning" should {
+  "anti virus scanning fail" should {
 
-    "provide a 403 response for no virus present" in {
+    "provide a 403 response for virus present" in {
 
       resource("/ping/ping").status shouldBe 200
 
       val result = postAttachment(scanEndpoint)
 
       result.status shouldBe 403
+    }
+
+  }
+
+  "anti virus scanning pass" should {
+
+    "provide a 200 response for no virus present" in {
+
+      resource("/ping/ping").status shouldBe 200
+
+      val result = postAttachment(scanEndpoint, Some(testFile))
+
+      result.status shouldBe 200
+    }
+
+  }
+
+  "large file" should {
+
+    "provide a 200 response for no virus present" in {
+
+      resource("/ping/ping").status shouldBe 200
+
+      val result = postAttachment(scanEndpoint, Some(largeFile))
+
+      result.status shouldBe 200
     }
 
   }
