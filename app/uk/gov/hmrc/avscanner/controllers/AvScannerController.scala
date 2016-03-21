@@ -16,19 +16,29 @@
 
 package uk.gov.hmrc.avscanner.controllers
 
-
-import java.nio.file.Files
-
 import play.api.mvc._
-import play.api.{Play, Logger, mvc}
+import play.api.{Logger, Play}
 import uk.gov.hmrc.avscanner.clamav.{ClamAntiVirus, VirusDetectedException}
 import uk.gov.hmrc.play.microservice.controller.BaseController
-
-import scala.concurrent.Future
 
 trait AvScannerController extends BaseController {
 
   import scala.concurrent.ExecutionContext.Implicits.global
+  import scala.concurrent.Future
+
+  val maxLength: Int
+
+  def scan() = Action.async(parse.raw) {
+    implicit request =>
+
+      request.body.asBytes(maxLength).map {
+        bytes =>
+          av(bytes)
+
+      }.getOrElse {
+        Future.successful(BadRequest("Content exceeded maxLength"))
+      }
+  }
 
   private[controllers] def av(bytes: Array[Byte]) = {
     val av = new ClamAntiVirus()
@@ -50,20 +60,9 @@ trait AvScannerController extends BaseController {
 }
 
 object AvScannerController extends AvScannerController {
+
   import play.api.Play.current
 
   val maxLength: Int = Play.configuration.getInt(s"clam.antivirus.maxLength")
     .getOrElse(throw new RuntimeException(s"The 'clam.antivirus.maxLength' config is missing"))
-
-  def scan() = Action.async(parse.raw) {
-    implicit request =>
-
-      request.body.asBytes(maxLength).map {
-        bytes =>
-          av(bytes)
-
-      }.getOrElse {
-        Future.successful(BadRequest("Content exceeded maxLength"))
-      }
-  }
 }
