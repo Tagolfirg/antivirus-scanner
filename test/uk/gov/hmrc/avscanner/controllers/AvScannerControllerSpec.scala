@@ -16,15 +16,14 @@
 
 package uk.gov.hmrc.avscanner.controllers
 
-import play.api.libs.ws.WSResponse
-import play.api.libs.ws.ning.NingWSResponse
-import play.api.mvc.Results
 import uk.gov.hmrc.avscanner.FileBytes
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
 
 class AvScannerControllerSpec extends UnitSpec with WithFakeApplication {
 
-  val avScannerController = new AvScannerController{}
+  val avScannerController = new AvScannerController{
+    override val maxLength: Int = Int.MaxValue
+  }
 
   val cleanFile = "/testfile.txt"
   val virusFile = "/eicar-standard-av-test-file"
