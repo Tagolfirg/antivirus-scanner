@@ -78,13 +78,13 @@ class AvScannerControllerISpec extends UnitSpec with OneServerPerSuite with Scal
 
   "large file" should {
 
-    "provide a 200 response for no virus present" in {
+    "provide a 400 response as its too large" in {
 
       resource("/ping/ping").status shouldBe 200
 
       val result = postAttachment(scanEndpoint, Some(largeFile))
 
-      result.status shouldBe 200
+      result.status shouldBe 400
     }
 
   }
