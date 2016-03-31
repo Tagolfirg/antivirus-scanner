@@ -34,9 +34,9 @@ class AvScannerControllerSpec extends UnitSpec with WithFakeApplication {
       status(avScannerController.av(FileBytes(cleanFile))) shouldBe 200
     }
 
-    "provide a 403 for a discovered virus" in {
+    "provide a 422 for a discovered virus" in {
 
-      status(avScannerController.av(FileBytes(virusFile))) shouldBe 403
+      status(avScannerController.av(FileBytes(virusFile))) shouldBe 422
     }
   }
 }

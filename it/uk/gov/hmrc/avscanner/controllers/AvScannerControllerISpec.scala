@@ -1,13 +1,10 @@
 package uk.gov.hmrc.avscanner.controllers
 
-import java.io.{ByteArrayOutputStream, File}
-import java.nio.file.Files
+import java.io.File
 
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration._
-import com.ning.http.client.FluentCaseInsensitiveStringsMap
-import com.ning.http.multipart._
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatestplus.play.OneServerPerSuite
@@ -15,10 +12,8 @@ import play.api.Logger
 import play.api.http.{ContentTypeOf, Writeable}
 import play.api.libs.ws.WS
 import uk.gov.hmrc.play.http.HeaderNames
-import uk.gov.hmrc.play.http.ws.WSHttpResponse
 import uk.gov.hmrc.play.test.UnitSpec
 
-import scala.collection.mutable.ListBuffer
 import scala.io.Source
 
 class AvScannerControllerISpec extends UnitSpec with OneServerPerSuite with ScalaFutures with IntegrationPatience with BeforeAndAfterAll with BeforeAndAfterEach {
@@ -52,13 +47,13 @@ class AvScannerControllerISpec extends UnitSpec with OneServerPerSuite with Scal
 
   "anti virus scanning fail" should {
 
-    "provide a 403 response for virus present" in {
+    "provide a 422 response for virus present" in {
 
       resource("/ping/ping").status shouldBe 200
 
       val result = postAttachment(scanEndpoint)
 
-      result.status shouldBe 403
+      result.status shouldBe 422
     }
 
   }

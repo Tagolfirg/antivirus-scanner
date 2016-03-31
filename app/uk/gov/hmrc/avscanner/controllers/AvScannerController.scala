@@ -50,7 +50,7 @@ trait AvScannerController extends BaseController {
               Future.successful(Ok)
           }.recoverWith {
             case virus: VirusDetectedException =>
-              Future.successful(Forbidden)
+              Future.successful(UnprocessableEntity)
             case t: Throwable =>
               Logger.warn("Unexpected error occurred whilst scanning file", t)
               throw t
