@@ -52,13 +52,13 @@ class AvScannerControllerISpec extends UnitSpec with OneServerPerSuite with Scal
 
   "anti virus scanning fail" should {
 
-    "provide a 403 response for virus present" in {
+    "provide a 400 response for virus present" in {
 
       resource("/ping/ping").status shouldBe 200
 
       val result = postAttachment(scanEndpoint)
 
-      result.status shouldBe 403
+      result.status shouldBe 400
     }
 
   }
