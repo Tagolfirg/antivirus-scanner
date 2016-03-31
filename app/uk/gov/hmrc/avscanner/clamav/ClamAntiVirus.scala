@@ -23,7 +23,22 @@ import play.api.Logger
 import scala.concurrent.{ExecutionContext, Future}
 
 // This is a fork of https://github.com/davidillsley/gds-clamav-scala/tree/531562368a438eafc1fcbfa07cc63c184d369fa9
-class ClamAntiVirus() {
+trait ClamAvResponseInterpreter {
+
+  import uk.gov.hmrc.avscanner.config.ClamAvConfig.clamAvConfig
+
+  def interpretResponseFromClamd(responseFromClamd: String): Unit = {
+    Logger.debug("response: " + responseFromClamd)
+    if (!clamAvConfig.okClamAvResponse.equals(responseFromClamd)) {
+      Logger.warn(s"Virus detected : $responseFromClamd")
+      throw new VirusDetectedException(responseFromClamd)
+    }
+
+    Logger.info("File clean")
+  }
+}
+
+class ClamAntiVirus() extends ClamAvResponseInterpreter {
 
   import uk.gov.hmrc.avscanner.config.ClamAvConfig.clamAvConfig
 
@@ -47,14 +62,7 @@ class ClamAntiVirus() {
         toClam.writeInt(0)
         toClam.flush()
 
-        val virusInformation = responseFromClamd()
-
-        if (!clamAvConfig.okClamAvResponse.equals(virusInformation)) {
-          Logger.warn(s"Virus detected : $virusInformation")
-          throw new VirusDetectedException(virusInformation)
-        }
-
-        Logger.info("File clean")
+        interpretResponseFromClamd(responseFromClamd())
       }
       finally {
         terminate()
