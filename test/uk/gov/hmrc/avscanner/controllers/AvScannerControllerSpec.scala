@@ -34,12 +34,12 @@ class AvScannerControllerSpec extends UnitSpec with WithFakeApplication {
       status(avScannerController.av(FileBytes(SpecConstants.cleanFile))) shouldBe 200
     }
 
-    "provide a 403 response for a discovered virus" in {
+    "provide a 422 response for a discovered virus" in {
       val avScannerController = fakeAvScannerController {
         Future.failed(new VirusDetectedException("stream: Eicar-Test-Signature FOUND"))
       }
 
-      status(avScannerController.av(FileBytes(SpecConstants.cleanFile))) shouldBe 403
+      status(avScannerController.av(FileBytes(SpecConstants.cleanFile))) shouldBe 422
     }
 
     "provide a 500 response with a description of the failure when ClamAV fails" in {

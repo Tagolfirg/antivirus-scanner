@@ -31,9 +31,9 @@ class AvScannerControllerWiringSpec extends UnitSpec with WithFakeApplication {
       status(avScannerController.av(FileBytes(SpecConstants.cleanFile))) shouldBe 200
     }
 
-    "provide a 403 response for a discovered virus" in {
+    "provide a 422 response for a discovered virus" in {
 
-      status(avScannerController.av(FileBytes(SpecConstants.virusFile))) shouldBe 403
+      status(avScannerController.av(FileBytes(SpecConstants.virusFile))) shouldBe 422
     }
   }
 }

@@ -51,7 +51,7 @@ trait AvScannerController extends BaseController {
               Future.successful(Ok)
           }.recoverWith {
             case virus: VirusDetectedException =>
-              Future.successful(Forbidden)
+              Future.successful(UnprocessableEntity)
             case f: ClamAvFailedException =>
               Future.successful(InternalServerError(
                 Json.obj(
