@@ -41,7 +41,12 @@ trait ClamAvResponseInterpreter {
   }
 }
 
-class ClamAntiVirus() extends ClamAvResponseInterpreter {
+trait VirusChecker {
+  def sendBytesToClamd(bytes: Array[Byte])(implicit ec : ExecutionContext): Future[Unit]
+  def checkForVirus()(implicit ec : ExecutionContext): Future[Unit]
+}
+
+class ClamAntiVirus() extends ClamAvResponseInterpreter with VirusChecker {
 
   import uk.gov.hmrc.avscanner.config.ClamAvConfig.clamAvConfig
 
@@ -51,7 +56,7 @@ class ClamAntiVirus() extends ClamAvResponseInterpreter {
 
   toClam.write(clamAvConfig.instream.getBytes())
 
-  def sendBytesToClamd(bytes: Array[Byte])(implicit ec : ExecutionContext): Future[Unit] = {
+  override def sendBytesToClamd(bytes: Array[Byte])(implicit ec : ExecutionContext): Future[Unit] = {
     Future{
       toClam.writeInt(bytes.length)
       toClam.write(bytes)
@@ -59,7 +64,7 @@ class ClamAntiVirus() extends ClamAvResponseInterpreter {
     }
   }
 
-  def checkForVirus()(implicit ec : ExecutionContext): Future[Unit] = {
+  override def checkForVirus()(implicit ec : ExecutionContext): Future[Unit] = {
     Future {
       try {
         toClam.writeInt(0)

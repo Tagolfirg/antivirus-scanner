@@ -18,7 +18,7 @@ package uk.gov.hmrc.avscanner.controllers
 
 import play.api.mvc._
 import play.api.{Logger, Play}
-import uk.gov.hmrc.avscanner.clamav.{ClamAntiVirus, VirusDetectedException}
+import uk.gov.hmrc.avscanner.clamav.{ClamAntiVirus, ClamAvFailedException, VirusChecker, VirusDetectedException}
 import uk.gov.hmrc.play.microservice.controller.BaseController
 
 trait AvScannerController extends BaseController {
@@ -41,7 +41,7 @@ trait AvScannerController extends BaseController {
   }
 
   private[controllers] def av(bytes: Array[Byte]) = {
-    val av = new ClamAntiVirus()
+    val av = newVirusChecker
     av.sendBytesToClamd(bytes)
       .flatMap {
         case u =>
@@ -51,11 +51,17 @@ trait AvScannerController extends BaseController {
           }.recoverWith {
             case virus: VirusDetectedException =>
               Future.successful(Forbidden)
+            case f: ClamAvFailedException =>
+              Future.successful(InternalServerError)
             case t: Throwable =>
               Logger.warn("Unexpected error occurred whilst scanning file", t)
               throw t
           }
       }
+  }
+
+  private[controllers] def newVirusChecker: VirusChecker = {
+    new ClamAntiVirus()
   }
 }
 
