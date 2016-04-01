@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.avscanner.controllers
 
+import play.api.libs.json.Json
 import play.api.mvc._
 import play.api.{Logger, Play}
 import uk.gov.hmrc.avscanner.clamav.{ClamAntiVirus, ClamAvFailedException, VirusChecker, VirusDetectedException}
@@ -52,7 +53,11 @@ trait AvScannerController extends BaseController {
             case virus: VirusDetectedException =>
               Future.successful(Forbidden)
             case f: ClamAvFailedException =>
-              Future.successful(InternalServerError)
+              Future.successful(InternalServerError(
+                Json.obj(
+                  "reason" -> "ClamAV failed",
+                  "detail" -> f.message
+                )))
             case t: Throwable =>
               Logger.warn("Unexpected error occurred whilst scanning file", t)
               throw t

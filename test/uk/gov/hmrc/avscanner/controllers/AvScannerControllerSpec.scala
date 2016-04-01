@@ -16,6 +16,8 @@
 
 package uk.gov.hmrc.avscanner.controllers
 
+import play.api.libs.json.JsString
+import play.api.mvc.Result
 import uk.gov.hmrc.avscanner.FileBytes
 import uk.gov.hmrc.avscanner.clamav.{ClamAvFailedException, VirusChecker, VirusDetectedException}
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
@@ -40,12 +42,19 @@ class AvScannerControllerSpec extends UnitSpec with WithFakeApplication {
       status(avScannerController.av(FileBytes(SpecConstants.cleanFile))) shouldBe 403
     }
 
-    "provide a 500 response when ClamAV fails" in {
+    "provide a 500 response with a description of the failure when ClamAV fails" in {
       val avScannerController = fakeAvScannerController {
         Future.failed(new ClamAvFailedException("test ClamAv failure"))
       }
 
-      status(avScannerController.av(FileBytes(SpecConstants.cleanFile))) shouldBe 500
+      val result: Result = avScannerController.av(FileBytes(SpecConstants.cleanFile))
+      status(result) shouldBe 500
+
+      val body = jsonBodyOf(result)
+      val reason = body \ "reason"
+      reason shouldBe JsString("ClamAV failed")
+      val detail = body \ "detail"
+      detail shouldBe JsString("test ClamAv failure")
     }
   }
 
