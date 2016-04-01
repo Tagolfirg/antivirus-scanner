@@ -31,5 +31,13 @@ class ClamAvResponseInterpreterSpec extends UnitSpec with WithFakeApplication {
         interpreter.interpretResponseFromClamd("stream: Eicar-Test-Signature FOUND")
       }
     }
+
+    "throw a ClamAvFailedException on an empty response" in {
+      intercept[ClamAvFailedException] {
+        // we have observed that when clamav fails under high load we get an
+        // empty response
+        interpreter.interpretResponseFromClamd("")
+      }
+    }
   }
 }

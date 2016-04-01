@@ -28,13 +28,16 @@ trait ClamAvResponseInterpreter {
   import uk.gov.hmrc.avscanner.config.ClamAvConfig.clamAvConfig
 
   def interpretResponseFromClamd(responseFromClamd: String): Unit = {
-    Logger.debug("response: " + responseFromClamd)
-    if (!clamAvConfig.okClamAvResponse.equals(responseFromClamd)) {
-      Logger.warn(s"Virus detected : $responseFromClamd")
-      throw new VirusDetectedException(responseFromClamd)
+    responseFromClamd match {
+      case clamAvConfig.okClamAvResponse =>
+        Logger.info("File clean")
+      case "" =>
+        Logger.warn("Empty response from clamd")
+        throw new ClamAvFailedException("Empty response from clamd")
+      case _ =>
+        Logger.warn(s"Virus detected : $responseFromClamd")
+        throw new VirusDetectedException(responseFromClamd)
     }
-
-    Logger.info("File clean")
   }
 }
 
@@ -101,3 +104,4 @@ class ClamAntiVirus() extends ClamAvResponseInterpreter {
 }
 
 class VirusDetectedException(val virusInformation: String) extends Exception(s"Virus detected: $virusInformation")
+class ClamAvFailedException(val message: String) extends Exception(message)
