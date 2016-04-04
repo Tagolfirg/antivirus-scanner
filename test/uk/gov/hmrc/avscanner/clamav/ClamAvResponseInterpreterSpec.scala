@@ -23,12 +23,12 @@ class ClamAvResponseInterpreterSpec extends UnitSpec with WithFakeApplication {
 
   "Interpreting responses from ClamAV" should {
     "return without exception on an OK response" in {
-      interpreter.interpretResponseFromClamd("stream: OK")
+      interpreter.interpretResponseFromClamd(Some("stream: OK"))
     }
 
     "throw a VirusDetectedException on a FOUND response" in {
       intercept[VirusDetectedException] {
-        interpreter.interpretResponseFromClamd("stream: Eicar-Test-Signature FOUND")
+        interpreter.interpretResponseFromClamd(Some("stream: Eicar-Test-Signature FOUND"))
       }
     }
 
@@ -36,7 +36,7 @@ class ClamAvResponseInterpreterSpec extends UnitSpec with WithFakeApplication {
       intercept[ClamAvFailedException] {
         // we have observed that when clamav fails under high load we get an
         // empty response
-        interpreter.interpretResponseFromClamd("")
+        interpreter.interpretResponseFromClamd(None)
       }
     }
   }

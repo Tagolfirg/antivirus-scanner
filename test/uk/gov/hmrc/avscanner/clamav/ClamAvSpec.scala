@@ -98,6 +98,18 @@ class ClamAvSpec extends UnitSpec with WithFakeApplication {
     }
   }
 
+  "emptyToNone" should {
+    val clamAv = new ClamAntiVirus()
+
+    "convert an empty response to None" in {
+      clamAv.emptyToNone("") shouldBe None
+    }
+
+    "convert a non-empty response to Some(response)" in {
+      clamAv.emptyToNone("Something") shouldBe Some("Something")
+    }
+  }
+
   private def getPayload(payloadSize: Int = 0, shouldInsertVirusAtPosition: Option[Int] = None) = {
     val payloadData = shouldInsertVirusAtPosition match {
       case Some(position) =>
