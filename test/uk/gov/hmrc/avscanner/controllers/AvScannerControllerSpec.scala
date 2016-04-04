@@ -16,27 +16,63 @@
 
 package uk.gov.hmrc.avscanner.controllers
 
+import play.api.libs.json.JsString
+import play.api.mvc.Result
 import uk.gov.hmrc.avscanner.FileBytes
+import uk.gov.hmrc.avscanner.clamav.{ClamAvFailedException, VirusChecker, VirusDetectedException}
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
 
+import scala.concurrent.{ExecutionContext, Future}
+
 class AvScannerControllerSpec extends UnitSpec with WithFakeApplication {
-
-  val avScannerController = new AvScannerController{
-    override val maxLength: Int = Int.MaxValue
-  }
-
-  val cleanFile = "/testfile.txt"
-  val virusFile = "/eicar-standard-av-test-file"
-
-  "anti virus scanning" should {
+  "anti virus controller" should {
     "provide a 200 response for no virus present" in {
+      val avScannerController = fakeAvScannerController {
+        Future.successful(())
+      }
 
-      status(avScannerController.av(FileBytes(cleanFile))) shouldBe 200
+      status(avScannerController.av(FileBytes(SpecConstants.cleanFile))) shouldBe 200
     }
 
-    "provide a 403 for a discovered virus" in {
+    "provide a 403 response for a discovered virus" in {
+      val avScannerController = fakeAvScannerController {
+        Future.failed(new VirusDetectedException("stream: Eicar-Test-Signature FOUND"))
+      }
 
-      status(avScannerController.av(FileBytes(virusFile))) shouldBe 403
+      status(avScannerController.av(FileBytes(SpecConstants.cleanFile))) shouldBe 403
+    }
+
+    "provide a 500 response with a description of the failure when ClamAV fails" in {
+      val avScannerController = fakeAvScannerController {
+        Future.failed(new ClamAvFailedException("test ClamAv failure"))
+      }
+
+      val result: Result = avScannerController.av(FileBytes(SpecConstants.cleanFile))
+      status(result) shouldBe 500
+
+      val body = jsonBodyOf(result)
+      val reason = body \ "reason"
+      reason shouldBe JsString("ClamAV failed")
+      val detail = body \ "detail"
+      detail shouldBe JsString("test ClamAv failure")
+    }
+  }
+
+  def fakeAvScannerController(fakeCheckForVirus: => Future[Unit]): AvScannerController = {
+    new AvScannerController {
+      override val maxLength: Int = Int.MaxValue
+
+      override def newVirusChecker = {
+        new VirusChecker {
+          override def checkForVirus()(implicit ec: ExecutionContext): Future[Unit] = {
+            fakeCheckForVirus
+          }
+
+          override def sendBytesToClamd(bytes: Array[Byte])(implicit ec: ExecutionContext): Future[Unit] = {
+            Future.successful(())
+          }
+        }
+      }
     }
   }
 }

@@ -23,7 +23,30 @@ import play.api.Logger
 import scala.concurrent.{ExecutionContext, Future}
 
 // This is a fork of https://github.com/davidillsley/gds-clamav-scala/tree/531562368a438eafc1fcbfa07cc63c184d369fa9
-class ClamAntiVirus() {
+trait ClamAvResponseInterpreter {
+
+  import uk.gov.hmrc.avscanner.config.ClamAvConfig.clamAvConfig
+
+  def interpretResponseFromClamd(responseFromClamd: Option[String]): Unit = {
+    responseFromClamd match {
+      case Some(clamAvConfig.okClamAvResponse) =>
+        Logger.info("File clean")
+      case None =>
+        Logger.warn("Empty response from clamd")
+        throw new ClamAvFailedException("Empty response from clamd")
+      case Some(responseString) =>
+        Logger.warn(s"Virus detected : $responseString")
+        throw new VirusDetectedException(responseString)
+    }
+  }
+}
+
+trait VirusChecker {
+  def sendBytesToClamd(bytes: Array[Byte])(implicit ec : ExecutionContext): Future[Unit]
+  def checkForVirus()(implicit ec : ExecutionContext): Future[Unit]
+}
+
+class ClamAntiVirus() extends ClamAvResponseInterpreter with VirusChecker {
 
   import uk.gov.hmrc.avscanner.config.ClamAvConfig.clamAvConfig
 
@@ -33,7 +56,7 @@ class ClamAntiVirus() {
 
   toClam.write(clamAvConfig.instream.getBytes())
 
-  def sendBytesToClamd(bytes: Array[Byte])(implicit ec : ExecutionContext): Future[Unit] = {
+  override def sendBytesToClamd(bytes: Array[Byte])(implicit ec : ExecutionContext): Future[Unit] = {
     Future{
       toClam.writeInt(bytes.length)
       toClam.write(bytes)
@@ -41,20 +64,13 @@ class ClamAntiVirus() {
     }
   }
 
-  def checkForVirus()(implicit ec : ExecutionContext): Future[Unit] = {
+  override def checkForVirus()(implicit ec : ExecutionContext): Future[Unit] = {
     Future {
       try {
         toClam.writeInt(0)
         toClam.flush()
 
-        val virusInformation = responseFromClamd()
-
-        if (!clamAvConfig.okClamAvResponse.equals(virusInformation)) {
-          Logger.warn(s"Virus detected : $virusInformation")
-          throw new VirusDetectedException(virusInformation)
-        }
-
-        Logger.info("File clean")
+        interpretResponseFromClamd(responseFromClamd())
       }
       finally {
         terminate()
@@ -79,7 +95,7 @@ class ClamAntiVirus() {
     }
   }
 
-  private def responseFromClamd() = {
+  private def responseFromClamd(): Option[String] = {
     val response = new String(
       Iterator.continually(fromClam.read)
         .takeWhile(_ != -1)
@@ -87,9 +103,13 @@ class ClamAntiVirus() {
         .toArray)
 
     Logger.info(s"Response from clamd: $response")
-    response.trim()
+    emptyToNone(response.trim)
   }
 
+  def emptyToNone(s: String): Option[String] = {
+    if (s.isEmpty) None else Some(s)
+  }
 }
 
 class VirusDetectedException(val virusInformation: String) extends Exception(s"Virus detected: $virusInformation")
+class ClamAvFailedException(val message: String) extends Exception(message)
