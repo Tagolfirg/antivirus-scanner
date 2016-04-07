@@ -99,13 +99,13 @@ class ClamAvSpec extends UnitSpec with WithFakeApplication {
   }
 
   "emptyToNone" should {
-    val clamAv = new ClamAntiVirus()
-
     "convert an empty response to None" in {
+      val clamAv = new ClamAntiVirus()
       clamAv.emptyToNone("") shouldBe None
     }
 
     "convert a non-empty response to Some(response)" in {
+      val clamAv = new ClamAntiVirus()
       clamAv.emptyToNone("Something") shouldBe Some("Something")
     }
   }
