@@ -16,10 +16,11 @@
 
 package uk.gov.hmrc.avscanner.controllers
 
+import play.api.Logger
 import play.api.libs.json.Json
 import play.api.mvc._
-import play.api.{Logger, Play}
-import uk.gov.hmrc.avscanner.clamav.{ClamAntiVirus, ClamAvFailedException, VirusChecker, VirusDetectedException}
+import uk.gov.hmrc.avscanner.{VirusChecker, VirusDetectedException, VirusScannerFailureException}
+import uk.gov.hmrc.avscanner.clamav.ClamAntiVirus
 import uk.gov.hmrc.play.microservice.controller.BaseController
 
 trait AvScannerController extends BaseController {
@@ -27,41 +28,26 @@ trait AvScannerController extends BaseController {
   import scala.concurrent.ExecutionContext.Implicits.global
   import scala.concurrent.Future
 
-  val maxLength: Int
-
-  def scan() = Action.async(parse.raw) {
+  def scan() = Action.async(StreamingBodyParser(newVirusChecker)) {
     implicit request =>
-
-      request.body.asBytes(maxLength).map {
-        bytes =>
-          av(bytes)
-
-      }.getOrElse {
-        Future.successful(BadRequest("Content exceeded maxLength"))
-      }
-  }
-
-  private[controllers] def av(bytes: Array[Byte]) = {
-    val av = newVirusChecker
-    av.sendBytesToClamd(bytes)
-      .flatMap {
-        case u =>
-          av.checkForVirus().flatMap {
-            case checked =>
-              Future.successful(Ok)
-          }.recoverWith {
-            case virus: VirusDetectedException =>
-              Future.successful(Forbidden)
-            case f: ClamAvFailedException =>
-              Future.successful(InternalServerError(
-                Json.obj(
-                  "reason" -> "ClamAV failed",
-                  "detail" -> f.message
-                )))
-            case t: Throwable =>
-              Logger.warn("Unexpected error occurred whilst scanning file", t)
-              throw t
-          }
+      request.body match {
+        case Finished() => Future.successful(Ok)
+        case Error(_, e:VirusDetectedException) =>
+          Logger.warn(s"Antivirus scanner detected a virus: ${e.getMessage}", e)
+          Future.successful(Forbidden)
+        case Error(_, e:VirusScannerFailureException) =>
+          Logger.warn(s"Antivirus scanner failed with error: ${e.getMessage}", e)
+          Future.successful(InternalServerError(
+            Json.obj(
+              "reason" -> "Antivirus scanner failed",
+              "detail" -> e.message
+            )))
+        case Error(_, e:Throwable) =>
+          Logger.warn(s"Internal error: ${e.getMessage}", e)
+          Future.successful(InternalServerError)
+        case _ =>
+          Logger.warn(s"An unkonwn error occurred returning from Antivirus scanning")
+          Future.successful(InternalServerError)
       }
   }
 
@@ -70,10 +56,4 @@ trait AvScannerController extends BaseController {
   }
 }
 
-object AvScannerController extends AvScannerController {
-
-  import play.api.Play.current
-
-  val maxLength: Int = Play.configuration.getInt(s"clam.antivirus.maxLength")
-    .getOrElse(throw new RuntimeException(s"The 'clam.antivirus.maxLength' config is missing"))
-}
+object AvScannerController extends AvScannerController {}

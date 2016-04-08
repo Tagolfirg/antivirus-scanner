@@ -16,24 +16,21 @@
 
 package uk.gov.hmrc.avscanner.controllers
 
+import play.api.test.FakeRequest
 import uk.gov.hmrc.avscanner.FileBytes
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
 
 class AvScannerControllerWiringSpec extends UnitSpec with WithFakeApplication {
 
-  val avScannerController = new AvScannerController{
-    override val maxLength: Int = Int.MaxValue
-  }
-
   "anti virus controller in conjunction with clamd" should {
     "provide a 200 response for no virus present" in {
-
-      status(avScannerController.av(FileBytes(SpecConstants.cleanFile))) shouldBe 200
+      val result = new AvScannerController {}.scan().apply(FakeRequest("POST", "/avscanner/scan").withBody[Array[Byte]](FileBytes(SpecConstants.cleanFile))).run
+      status(result) shouldBe 200
     }
 
     "provide a 403 response for a discovered virus" in {
-
-      status(avScannerController.av(FileBytes(SpecConstants.virusFile))) shouldBe 403
+      val result = new AvScannerController {}.scan().apply(FakeRequest("POST", "/avscanner/scan").withBody[Array[Byte]](FileBytes(SpecConstants.virusFile))).run
+      status(result) shouldBe 403
     }
   }
 }

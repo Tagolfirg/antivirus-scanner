@@ -17,9 +17,8 @@
 package uk.gov.hmrc.avscanner.controllers
 
 import play.api.libs.json.JsString
-import play.api.mvc.Result
-import uk.gov.hmrc.avscanner.FileBytes
-import uk.gov.hmrc.avscanner.clamav.{ClamAvFailedException, VirusChecker, VirusDetectedException}
+import play.api.test.{FakeHeaders, FakeRequest}
+import uk.gov.hmrc.avscanner.{FileBytes, VirusChecker, VirusDetectedException, VirusScannerFailureException}
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -31,7 +30,8 @@ class AvScannerControllerSpec extends UnitSpec with WithFakeApplication {
         Future.successful(())
       }
 
-      status(avScannerController.av(FileBytes(SpecConstants.cleanFile))) shouldBe 200
+      val result = avScannerController.scan().apply(FakeRequest("POST", "/avscanner/scan", FakeHeaders(), FileBytes(SpecConstants.cleanFile))).run
+      status(result) shouldBe 200
     }
 
     "provide a 403 response for a discovered virus" in {
@@ -39,20 +39,21 @@ class AvScannerControllerSpec extends UnitSpec with WithFakeApplication {
         Future.failed(new VirusDetectedException("stream: Eicar-Test-Signature FOUND"))
       }
 
-      status(avScannerController.av(FileBytes(SpecConstants.cleanFile))) shouldBe 403
+      val result = avScannerController.scan().apply(FakeRequest("POST", "/avscanner/scan", FakeHeaders(), FileBytes(SpecConstants.cleanFile))).run
+      status(result) shouldBe 403
     }
 
     "provide a 500 response with a description of the failure when ClamAV fails" in {
       val avScannerController = fakeAvScannerController {
-        Future.failed(new ClamAvFailedException("test ClamAv failure"))
+        Future.failed(new VirusScannerFailureException("test ClamAv failure"))
       }
 
-      val result: Result = avScannerController.av(FileBytes(SpecConstants.cleanFile))
+      val result = avScannerController.scan().apply(FakeRequest("POST", "/avscanner/scan", FakeHeaders(), FileBytes(SpecConstants.cleanFile))).run
       status(result) shouldBe 500
 
       val body = jsonBodyOf(result)
       val reason = body \ "reason"
-      reason shouldBe JsString("ClamAV failed")
+      reason shouldBe JsString("Antivirus scanner failed")
       val detail = body \ "detail"
       detail shouldBe JsString("test ClamAv failure")
     }
@@ -60,15 +61,13 @@ class AvScannerControllerSpec extends UnitSpec with WithFakeApplication {
 
   def fakeAvScannerController(fakeCheckForVirus: => Future[Unit]): AvScannerController = {
     new AvScannerController {
-      override val maxLength: Int = Int.MaxValue
-
       override def newVirusChecker = {
         new VirusChecker {
-          override def checkForVirus()(implicit ec: ExecutionContext): Future[Unit] = {
+          override def finish()(implicit ec: ExecutionContext): Future[Unit] = {
             fakeCheckForVirus
           }
 
-          override def sendBytesToClamd(bytes: Array[Byte])(implicit ec: ExecutionContext): Future[Unit] = {
+          override def send(bytes: Array[Byte])(implicit ec: ExecutionContext): Future[Unit] = {
             Future.successful(())
           }
         }

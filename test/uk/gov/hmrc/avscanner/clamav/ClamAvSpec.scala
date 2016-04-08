@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.avscanner.clamav
 
-import uk.gov.hmrc.avscanner.FileBytes
+import uk.gov.hmrc.avscanner.{FileBytes, VirusDetectedException}
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
 
 class ClamAvSpec extends UnitSpec with WithFakeApplication {
@@ -33,7 +33,7 @@ class ClamAvSpec extends UnitSpec with WithFakeApplication {
       val bytes = FileBytes(cleanFile)
 
       try {
-        await(clamAv.sendBytesToClamd(bytes))
+        await(clamAv.send(bytes))
         await(clamAv.checkForVirus())
       }
       finally {
@@ -47,7 +47,7 @@ class ClamAvSpec extends UnitSpec with WithFakeApplication {
 
       try {
         intercept[VirusDetectedException] {
-          await(clamAv.sendBytesToClamd(bytes))
+          await(clamAv.send(bytes))
           await(clamAv.checkForVirus())
         }
       }
@@ -63,7 +63,7 @@ class ClamAvSpec extends UnitSpec with WithFakeApplication {
     val clamAv = new ClamAntiVirus()
 
     try {
-      await(clamAv.sendBytesToClamd(getBytes(payloadSize = 10000)))
+      await(clamAv.send(getBytes(payloadSize = 10000)))
       await(clamAv.checkForVirus())
     }
     finally {
@@ -75,8 +75,8 @@ class ClamAvSpec extends UnitSpec with WithFakeApplication {
     val clamAv = new ClamAntiVirus()
 
     try {
-      await(clamAv.sendBytesToClamd(getBytes(payloadSize = 1000)))
-      await(clamAv.sendBytesToClamd(getBytes(payloadSize = 1000)))
+      await(clamAv.send(getBytes(payloadSize = 1000)))
+      await(clamAv.send(getBytes(payloadSize = 1000)))
       await(clamAv.checkForVirus())
     }
     finally {
@@ -89,7 +89,7 @@ class ClamAvSpec extends UnitSpec with WithFakeApplication {
 
     try {
       intercept[VirusDetectedException] {
-        await(clamAv.sendBytesToClamd(getBytes(shouldInsertVirusAtPosition = Some(0))))
+        await(clamAv.send(getBytes(shouldInsertVirusAtPosition = Some(0))))
         await(clamAv.checkForVirus())
       }
     }
