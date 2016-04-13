@@ -24,9 +24,12 @@ You will also need to add the following alias to your /etc/hosts
 
 ```127.0.0.1       avscan```
 
-Please note. To run the build locally you need to disable any other virus checker you have installed on your machine
+### Antivirus Scanning Exclusions
+
+This repository includes the EICAR standard antivirus test file. To prevent this file from being deleted you'll need to exclude this repo's `target` and `test/resources` directories from AV scanning. In Sophos Anti-Virus this is done as shown in the screenshot:
+
+![Sophos Anti-Virus Preferences Screenshot](doc/sophos-av-exclusions.png?raw=true)
 
 ### License
 
 This code is open source software licensed under the [Apache 2.0 License]("http://www.apache.org/licenses/LICENSE-2.0.html").
-    
