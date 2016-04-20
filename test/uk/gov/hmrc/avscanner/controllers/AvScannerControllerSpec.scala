@@ -61,17 +61,7 @@ class AvScannerControllerSpec extends UnitSpec with WithFakeApplication {
 
   def fakeAvScannerController(fakeCheckForVirus: => Future[Unit]): AvScannerController = {
     new AvScannerController {
-      override def newVirusChecker = {
-        new VirusChecker {
-          override def finish()(implicit ec: ExecutionContext): Future[Unit] = {
-            fakeCheckForVirus
-          }
-
-          override def send(bytes: Array[Byte])(implicit ec: ExecutionContext): Future[Unit] = {
-            Future.successful(())
-          }
-        }
-      }
+      override def newVirusChecker = fakeVirusChecker(fakeCheckForVirus)
     }
   }
 }
