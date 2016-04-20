@@ -18,10 +18,10 @@ package uk.gov.hmrc.avscanner.controllers
 
 import play.api.libs.json.JsString
 import play.api.test.{FakeHeaders, FakeRequest}
-import uk.gov.hmrc.avscanner.{FileBytes, VirusChecker, VirusDetectedException, VirusScannerFailureException}
+import uk.gov.hmrc.avscanner.{FileBytes, VirusDetectedException, VirusScannerFailureException}
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 
 class AvScannerControllerSpec extends UnitSpec with WithFakeApplication {
   "anti virus controller" should {
