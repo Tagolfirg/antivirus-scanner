@@ -60,8 +60,8 @@ trait AvScannerController extends BaseController {
         Logger.warn(s"Internal error: ${e.getMessage}", e)
         InternalServerError
 
-      case _ =>
-        Logger.warn(s"An unknown error occurred returning from Antivirus scanning")
+      case unknown =>
+        Logger.warn(s"An unknown result was returning from Antivirus scanning: $unknown")
         InternalServerError
     }
   }
