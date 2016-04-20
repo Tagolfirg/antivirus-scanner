@@ -61,6 +61,8 @@ class AvScannerControllerSpec extends UnitSpec with WithFakeApplication {
 
   def fakeAvScannerController(fakeCheckForVirus: => Future[Unit]): AvScannerController = {
     new AvScannerController {
+      override val maxLength: Int = Int.MaxValue
+
       override def newVirusChecker = fakeVirusChecker(fakeCheckForVirus)
     }
   }
