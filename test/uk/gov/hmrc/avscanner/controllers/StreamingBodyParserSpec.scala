@@ -33,13 +33,8 @@ class StreamingBodyParserSpec extends UnitSpec {
 
       val parserIteratee: Iteratee[Array[Byte], Either[Result, Future[StreamingResult]]] = bodyParser(requestHeader)
 
-      val runResult: Either[Result, Future[StreamingResult]] = await(parserIteratee.run)
-      runResult match {
-        case Right(eventualStreamingResult) =>
-          val streamingResult: StreamingResult = await(eventualStreamingResult)
-          streamingResult shouldBe Finished
-        case _ => fail
-      }
+      val streamingResult = runIterateeAndAwaitStreamingResult(parserIteratee)
+      streamingResult shouldBe Finished
     }
 
     "return Failure when the streamer throws an exception" in {
@@ -49,18 +44,12 @@ class StreamingBodyParserSpec extends UnitSpec {
 
       val parserIteratee: Iteratee[Array[Byte], Either[Result, Future[StreamingResult]]] = bodyParser(requestHeader)
 
-
-      val runResult: Either[Result, Future[StreamingResult]] = await(parserIteratee.run)
-      runResult match {
-        case Right(eventualStreamingResult) =>
-          val streamingResult: StreamingResult = await(eventualStreamingResult)
-          streamingResult match {
-            case Error(e) =>
-              e should be theSameInstanceAs thrownException
-            case _ =>
-              fail
-          }
-        case _ => fail
+      val streamingResult = runIterateeAndAwaitStreamingResult(parserIteratee)
+      streamingResult match {
+        case Error(e) =>
+          e should be theSameInstanceAs thrownException
+        case _ =>
+          fail
       }
     }
 
@@ -69,6 +58,7 @@ class StreamingBodyParserSpec extends UnitSpec {
         val sent = mutable.ListBuffer[Array[Byte]]()
 
         override def finish()(implicit ec: ExecutionContext): Future[Unit] = {}
+
         override def send(bytes: Array[Byte])(implicit ec: ExecutionContext): Future[Unit] = {
           sent += bytes
           Future.successful(())
@@ -84,17 +74,23 @@ class StreamingBodyParserSpec extends UnitSpec {
       parserIteratee.feed(Input.El(bytes1))
       parserIteratee.feed(Input.El(bytes2))
 
-      val runResult: Either[Result, Future[StreamingResult]] = await(parserIteratee.run)
-      runResult match {
-        case Right(eventualStreamingResult) =>
-          val streamingResult: StreamingResult = await(eventualStreamingResult)
-          streamingResult shouldBe Finished
+      val streamingResult = runIterateeAndAwaitStreamingResult(parserIteratee)
+      streamingResult shouldBe Finished
 
-          capturingVirusChecker.sent.length shouldBe 2
-          capturingVirusChecker.sent(0) shouldBe bytes1
-          capturingVirusChecker.sent(1) shouldBe bytes2
-        case _ => fail
-      }
+      capturingVirusChecker.sent.length shouldBe 2
+      capturingVirusChecker.sent(0) shouldBe bytes1
+      capturingVirusChecker.sent(1) shouldBe bytes2
+    }
+  }
+
+  def runIterateeAndAwaitStreamingResult(
+    iteratee: Iteratee[Array[Byte], Either[Result, Future[StreamingResult]]]): StreamingResult = {
+
+    val runResult = await(iteratee.run)
+    runResult match {
+      case Right(eventualStreamingResult) =>
+        await(eventualStreamingResult)
+      case _ => fail
     }
   }
 }
