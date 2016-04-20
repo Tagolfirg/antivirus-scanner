@@ -16,12 +16,11 @@
 
 package uk.gov.hmrc.avscanner.controllers
 
-import play.api.libs.iteratee.{Cont, Done, Input, Iteratee}
-import play.api.libs.iteratee.Iteratee
+import play.api.libs.iteratee.{Input, Iteratee}
 import play.api.mvc.{RequestHeader, Result}
 import play.api.test.FakeRequest
-import uk.gov.hmrc.avscanner.{VirusChecker, VirusDetectedException, VirusScannerFailureException}
-import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
+import uk.gov.hmrc.avscanner.{VirusChecker, VirusDetectedException}
+import uk.gov.hmrc.play.test.UnitSpec
 
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
@@ -32,9 +31,15 @@ class StreamingBodyParserSpec extends UnitSpec {
       val bodyParser = new StreamingBodyParser(fakeVirusChecker(Future.successful(())))
       val requestHeader: RequestHeader = FakeRequest()
 
-      val parserIteratee: Iteratee[Array[Byte], Either[Result, StreamingResult]] = bodyParser(requestHeader)
+      val parserIteratee: Iteratee[Array[Byte], Either[Result, Future[StreamingResult]]] = bodyParser(requestHeader)
 
-      await(parserIteratee.run) shouldBe Right(Finished)
+      val runResult: Either[Result, Future[StreamingResult]] = await(parserIteratee.run)
+      runResult match {
+        case Right(eventualStreamingResult) =>
+          val streamingResult: StreamingResult = await(eventualStreamingResult)
+          streamingResult shouldBe Finished
+        case _ => fail
+      }
     }
 
     "return Failure when the streamer throws an exception" in {
@@ -42,14 +47,20 @@ class StreamingBodyParserSpec extends UnitSpec {
       val bodyParser = new StreamingBodyParser(fakeVirusChecker(Future.failed(thrownException)))
       val requestHeader: RequestHeader = FakeRequest()
 
-      val parserIteratee: Iteratee[Array[Byte], Either[Result, StreamingResult]] = bodyParser(requestHeader)
+      val parserIteratee: Iteratee[Array[Byte], Either[Result, Future[StreamingResult]]] = bodyParser(requestHeader)
 
 
-      await(parserIteratee.run) match {
-        case Right(Error(e)) =>
-          e should be theSameInstanceAs thrownException
-        case _ =>
-          fail
+      val runResult: Either[Result, Future[StreamingResult]] = await(parserIteratee.run)
+      runResult match {
+        case Right(eventualStreamingResult) =>
+          val streamingResult: StreamingResult = await(eventualStreamingResult)
+          streamingResult match {
+            case Error(e) =>
+              e should be theSameInstanceAs thrownException
+            case _ =>
+              fail
+          }
+        case _ => fail
       }
     }
 
@@ -67,19 +78,23 @@ class StreamingBodyParserSpec extends UnitSpec {
       val bodyParser = new StreamingBodyParser(capturingVirusChecker)
       val requestHeader: RequestHeader = FakeRequest()
 
-      val parserIteratee: Iteratee[Array[Byte], Either[Result, StreamingResult]] = bodyParser(requestHeader)
+      val parserIteratee: Iteratee[Array[Byte], Either[Result, Future[StreamingResult]]] = bodyParser(requestHeader)
       val bytes1: Array[Byte] = Array[Byte](1, 2, 3)
       val bytes2: Array[Byte] = Array[Byte](4, 5, 6)
       parserIteratee.feed(Input.El(bytes1))
       parserIteratee.feed(Input.El(bytes2))
 
-      val runResult: Either[Result, StreamingResult] = await(parserIteratee.run)
+      val runResult: Either[Result, Future[StreamingResult]] = await(parserIteratee.run)
+      runResult match {
+        case Right(eventualStreamingResult) =>
+          val streamingResult: StreamingResult = await(eventualStreamingResult)
+          streamingResult shouldBe Finished
 
-      capturingVirusChecker.sent.length shouldBe 2
-      capturingVirusChecker.sent(0) shouldBe bytes1
-      capturingVirusChecker.sent(1) shouldBe bytes2
-
-      runResult shouldBe Right(Finished)
+          capturingVirusChecker.sent.length shouldBe 2
+          capturingVirusChecker.sent(0) shouldBe bytes1
+          capturingVirusChecker.sent(1) shouldBe bytes2
+        case _ => fail
+      }
     }
   }
 }

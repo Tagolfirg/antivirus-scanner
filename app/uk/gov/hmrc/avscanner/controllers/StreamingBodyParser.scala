@@ -21,8 +21,7 @@ import play.api.libs.iteratee.{Cont, Done, Input, Iteratee}
 import play.api.mvc.{BodyParser, RequestHeader, Result}
 import uk.gov.hmrc.avscanner.Streamer
 
-import scala.concurrent.Await
-import scala.concurrent.duration._
+import scala.concurrent.Future
 
 
 sealed trait StreamingResult
@@ -30,26 +29,23 @@ case object Finished extends StreamingResult
 case class Error(t: Throwable) extends StreamingResult
 
 
-case class StreamingBodyParser(streamer: Streamer) extends BodyParser[StreamingResult] {
+case class StreamingBodyParser(streamer: Streamer) extends BodyParser[Future[StreamingResult]] {
   import scala.concurrent.ExecutionContext.Implicits.global
 
-  override def apply(rh: RequestHeader): Iteratee[Array[Byte], Either[Result, StreamingResult]] = {
+  override def apply(rh: RequestHeader): Iteratee[Array[Byte], Either[Result, Future[StreamingResult]]] = {
     step()
   }
 
-  def step(): Iteratee[Array[Byte], Either[Result, StreamingResult]] = Cont {
+  def step(): Iteratee[Array[Byte], Either[Result, Future[StreamingResult]]] = Cont {
     case Input.El(arr) =>
       Logger.debug(s"Sending chunk of ${arr.length} bytes to scanner instance")
       streamer.send(arr)
       step()
     case Input.Empty | Input.EOF =>
-      try {
-        //TODO avoid this Await?
-        Await.result(streamer.finish(), 5 seconds span)
-        Done(Right(Finished))
-      }
-      catch {
-        case t: Throwable => Done(Right(Error(t)))
-      }
+      val eventualResult: Future[StreamingResult] = streamer.finish()
+        .map(_ => Finished)
+        .recover { case t => Error(t) }
+
+      Done(Right(eventualResult))
   }
 }

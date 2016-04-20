@@ -25,32 +25,31 @@ import uk.gov.hmrc.play.microservice.controller.BaseController
 
 trait AvScannerController extends BaseController {
 
-  import scala.concurrent.Future
-
   def scan() = Action.async(StreamingBodyParser(newVirusChecker)) {
     implicit request =>
-      request.body match {
-        case Finished => Future.successful(Ok)
+      import play.api.libs.concurrent.Execution.Implicits._
+      request.body.map {
+        case Finished => Ok
 
         case Error(e: VirusDetectedException) =>
           Logger.warn(s"Antivirus scanner detected a virus: ${e.getMessage}", e)
-          Future.successful(Forbidden)
+          Forbidden
 
         case Error(e: VirusScannerFailureException) =>
           Logger.warn(s"Antivirus scanner failed with error: ${e.getMessage}", e)
-          Future.successful(InternalServerError(
+          InternalServerError(
             Json.obj(
               "reason" -> "Antivirus scanner failed",
               "detail" -> e.message
-            )))
+            ))
 
         case Error(e) =>
           Logger.warn(s"Internal error: ${e.getMessage}", e)
-          Future.successful(InternalServerError)
+          InternalServerError
 
         case _ =>
           Logger.warn(s"An unknown error occurred returning from Antivirus scanning")
-          Future.successful(InternalServerError)
+          InternalServerError
       }
   }
 
