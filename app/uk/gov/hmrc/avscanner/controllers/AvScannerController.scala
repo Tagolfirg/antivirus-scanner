@@ -40,7 +40,9 @@ trait AvScannerController extends BaseController {
   }
 
   def handleStreamingResult(eventualStreamingResult: Future[StreamingResult]): Future[Result] = {
-    import play.api.libs.concurrent.Execution.Implicits._
+
+    import play.api.libs.concurrent.Execution.Implicits.defaultContext
+
     eventualStreamingResult.map {
       case Finished => Ok
 
