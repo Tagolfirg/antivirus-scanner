@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.avscanner.clamav
 
+import uk.gov.hmrc.avscanner.{VirusDetectedException, VirusScannerFailureException}
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
 
 class ClamAvResponseInterpreterSpec extends UnitSpec with WithFakeApplication {
@@ -33,7 +34,7 @@ class ClamAvResponseInterpreterSpec extends UnitSpec with WithFakeApplication {
     }
 
     "throw a ClamAvFailedException on an empty response" in {
-      intercept[ClamAvFailedException] {
+      intercept[VirusScannerFailureException] {
         // we have observed that when clamav fails under high load we get an
         // empty response
         interpreter.interpretResponseFromClamd(None)

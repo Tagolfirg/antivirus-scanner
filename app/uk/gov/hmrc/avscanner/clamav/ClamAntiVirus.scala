@@ -19,6 +19,7 @@ package uk.gov.hmrc.avscanner.clamav
 import java.io._
 
 import play.api.Logger
+import uk.gov.hmrc.avscanner.{VirusChecker, VirusDetectedException, VirusScannerFailureException}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -33,7 +34,7 @@ trait ClamAvResponseInterpreter {
         Logger.info("File clean")
       case None =>
         Logger.warn("Empty response from clamd")
-        throw new ClamAvFailedException("Empty response from clamd")
+        throw new VirusScannerFailureException("Empty response from clamd")
       case Some(responseString) =>
         Logger.warn(s"Virus detected : $responseString")
         throw new VirusDetectedException(responseString)
@@ -41,10 +42,6 @@ trait ClamAvResponseInterpreter {
   }
 }
 
-trait VirusChecker {
-  def sendBytesToClamd(bytes: Array[Byte])(implicit ec : ExecutionContext): Future[Unit]
-  def checkForVirus()(implicit ec : ExecutionContext): Future[Unit]
-}
 
 class ClamAntiVirus() extends ClamAvResponseInterpreter with VirusChecker {
 
@@ -56,7 +53,7 @@ class ClamAntiVirus() extends ClamAvResponseInterpreter with VirusChecker {
 
   toClam.write(clamAvConfig.instream.getBytes())
 
-  override def sendBytesToClamd(bytes: Array[Byte])(implicit ec : ExecutionContext): Future[Unit] = {
+  override def send(bytes: Array[Byte])(implicit ec : ExecutionContext): Future[Unit] = {
     Future{
       toClam.writeInt(bytes.length)
       toClam.write(bytes)
@@ -64,7 +61,7 @@ class ClamAntiVirus() extends ClamAvResponseInterpreter with VirusChecker {
     }
   }
 
-  override def checkForVirus()(implicit ec : ExecutionContext): Future[Unit] = {
+  override def finish()(implicit ec : ExecutionContext): Future[Unit] = {
     Future {
       try {
         toClam.writeInt(0)
@@ -81,15 +78,14 @@ class ClamAntiVirus() extends ClamAvResponseInterpreter with VirusChecker {
   private [avscanner] def terminate() = {
     try {
       socket.close()
-    }
-    catch {
+    } catch {
       case e: IOException =>
         Logger.warn("Error closing socket to clamd", e)
     }
+
     try {
       toClam.close()
-    }
-    catch {
+    } catch {
       case e: IOException =>
         Logger.warn("Error closing socket to clamd", e)
     }
@@ -111,5 +107,3 @@ class ClamAntiVirus() extends ClamAvResponseInterpreter with VirusChecker {
   }
 }
 
-class VirusDetectedException(val virusInformation: String) extends Exception(s"Virus detected: $virusInformation")
-class ClamAvFailedException(val message: String) extends Exception(message)
