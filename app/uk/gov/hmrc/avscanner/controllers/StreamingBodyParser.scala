@@ -39,8 +39,13 @@ case class StreamingBodyParser(streamer: Streamer) extends BodyParser[Future[Str
   def step(): Iteratee[Array[Byte], Either[Result, Future[StreamingResult]]] = Cont {
     case Input.El(arr) =>
       Logger.debug(s"Sending chunk of ${arr.length} bytes to scanner instance")
-      streamer.send(arr)
-      step()
+
+      val eventualIteratee = streamer.send(arr).map {
+        _ => step()
+      }
+
+      Iteratee.flatten(eventualIteratee)
+
     case Input.Empty | Input.EOF =>
       val eventualResult: Future[StreamingResult] = streamer.finish()
         .map(_ => Finished)
